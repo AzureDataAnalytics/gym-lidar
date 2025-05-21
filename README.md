@@ -43,7 +43,7 @@ LIDAR_LOOP_TIME = 0.01
 ## 5. PWM Servo Limiter
 ```
 PWM_LIMITS = {
-    "pitch": (1700, 1850),  # PWM range for pitch servo
-    "yaw": (1000, 2000),  # PWM range for yaw servo
+    "pitch": (1700, 1850),  # (min,max)
+    "yaw": (1000, 2000),  # (min,max)
 }
 ```
