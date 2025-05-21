@@ -7,7 +7,7 @@
 ```
 python3 main.py
 ```
-# PARAMETERS
+# PARAMETERS (main.py)
 ## 1. Serial Port & Baudrate LiDAR
 ```
 PORT = "/dev/ttyS0"
