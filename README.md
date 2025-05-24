@@ -47,3 +47,7 @@ PWM_LIMITS = {
     "yaw": (1000, 2000),  # (min,max)
 }
 ```
+## 6. GPIO servoPinsc
+```
+servo = servoController.DualServoController(pin_Pitch=19, pin_Yaw=18)
+```
