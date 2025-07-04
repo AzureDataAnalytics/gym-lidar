@@ -11,15 +11,20 @@ BAUDRATE = 115200  # Baud rate for serial communication
 
 SERVO_MOVING_TIME = 0.7  # Time in seconds for servo movement delay
 FILTER_WINDOW = 10  # Size of the median filter window
-LOWER = 1  # Lower threshold for triggering servo movement (in cm)
-UPPER = 10  # Upper threshold for triggering servo movement (in cm)
+LOWER = 2  # Lower threshold for triggering servo movement (in cm)
+UPPER = 30  # Upper threshold for triggering servo movement (in cm)
 LOOP_TIME = 0.1  # Delay for main loop (in seconds)
 LIDAR_LOOP_TIME = 0.01  # Delay between LiDAR readings in the thread (in seconds)
 
 # PWM limits for servo movement
 PWM_LIMITS = {
-    "pitch": (1700, 1850),  # PWM range for pitch servo
+    # "pitch": (1700, 1850),  # PWM range for pitch servo
+    # "pitch": (1830, 1830),  # PWM range for pitch servo //1meter
+    # "pitch": (1950, 1950),  # PWM range for pitch servo //2meter
+    # "pitch": (1990, 1990),  # PWM range for pitch servo //3meter
     "yaw": (1000, 2000),  # PWM range for yaw servo
+    "pitch": (1790, 1790),  # PWM range for pitch servo //1meter
+
 }
 
 # Shared state for LiDAR data
@@ -81,9 +86,16 @@ def move_servo():
     print(f"[SERVO] Pitch: {pitch_pwm}, Yaw: {yaw_pwm}")
 
 def is_triggered(current, baseline):
-    """Check if the change in distance is significant enough to trigger the servo."""
-    delta = abs(current - baseline)  # Calculate the change in distance
-    return LOWER < delta < UPPER  # Return True if the change is within the defined range
+    """Check if the change in distance is significant enough to trigger the servo.
+    Re-adjust baseline if delta is too large."""
+    delta = abs(current - baseline)
+
+    if delta > UPPER:
+        print(f"[ADJUST] Delta terlalu besar ({delta:.1f} cm), baseline disesuaikan.")
+        # Update baseline di luar fungsi ini secara manual jika perlu
+        return False
+
+    return delta > LOWER
 
 def main():
     # Start the LiDAR reading thread
@@ -92,6 +104,7 @@ def main():
     baseline = None  # Baseline distance for comparison
     last_servo_time = 0  # Timestamp of the last servo movement
     servo_active = False  # Flag to indicate if the servo is currently active
+    threading.Thread(target=move_servo, daemon=True).start()
 
     while True:
         # Safely access the shared state
@@ -118,12 +131,14 @@ def main():
             baseline = distance
             servo_active = False
             print("[INFO] Start Reading for LiDAR data...")
-        
-        if not servo_active and is_triggered(distance, baseline):
-            # Trigger the servo if the change in distance is significant
-            threading.Thread(target=move_servo, daemon=True).start()
-            last_servo_time = current_time  # Update the last servo movement time
-            servo_active = True  # Mark the servo as active
+        if not servo_active:
+            if is_triggered(distance, baseline):
+                threading.Thread(target=move_servo, daemon=True).start()
+                last_servo_time = current_time
+                servo_active = True
+            elif abs(distance - baseline) > UPPER:
+                # Atur baseline baru jika perubahan terlalu ekstrem
+                baseline = distance
 
         # Print the current LiDAR data
         print(f"[DATA] Distance: {distance:.1f} cm | Baseline: {baseline:.1f} cm | Δ: {delta:.1f} cm | Strength: {strength} | Temp: {temperature:.2f}°C")
