@@ -49,34 +49,35 @@ def median(values):
         return (values[n // 2 - 1] + values[n // 2]) / 2
 
 def read_lidar():
-    """Thread to read data from the LiDAR sensor with a median filter."""
-    lidar = TFLidarReader.BenewakeLidar(PORT, BAUDRATE)  # Initialize the LiDAR sensor
+    """Thread to read data from the LiDAR sensor with a median filter and auto-reconnect on failure."""
     distance_window = deque(maxlen=FILTER_WINDOW)  # Sliding window for median filter
-
+    lidar = None
     while True:
         try:
-            # Read distance, signal strength, and temperature from the LiDAR sensor
+            if lidar is None:
+                print("[LIDAR] Attempting to connect...")
+                lidar = TFLidarReader.BenewakeLidar(PORT, BAUDRATE)
+                print("[LIDAR] Connected successfully.")
             distance, strength, temperature = lidar.get_reading()
-            
-            # Apply the median filter if the window is full, otherwise use the raw distance
+            distance_window.append(distance)
             if len(distance_window) == FILTER_WINDOW:
                 filtered_distance = median(distance_window)
             else:
-                filtered_distance = distance  # Not enough data for filtering yet
-            
-            # Update the shared state with the filtered distance and other sensor data
+                filtered_distance = distance
             with lock:
                 state.update({
                     "distance": filtered_distance,
                     "strength": strength,
                     "temperature": temperature
                 })
+
         except Exception as e:
-            # Handle any errors that occur during LiDAR data reading
             print(f"[LIDAR ERROR] {e}")
-        
-        # Wait for the next reading based on the LiDAR loop time
+            print("[LIDAR] Disconnect detected. Reconnecting in 2 seconds...")
+            lidar = None
+            time.sleep(1)
         time.sleep(LIDAR_LOOP_TIME)
+
 
 def move_servo():
     """Move the servo to random positions within the defined PWM limits."""
